@@ -1,5 +1,6 @@
 --問題37！ 49！ 50! 51! 52! 58! 64!
---わからない問題:8,9
+--わからない問題:23 22
+--日時と関係あるSQL文すべて実行出来ない18,19、20,21とか
 
 
 --問題1：各グループの中でFIFAランクが最も高い国と低い国のランキング番号を表示してください。
@@ -99,23 +100,222 @@ ORDER BY
 
 
 --問題8：各ポジションごとの総得点を表示してください。
-select p.position,sum(g.id)from players p left join goals g
-on p.id = g.player_id
-group by p.position
+select
+    p.position
+    , count(g.id) 
+from
+    players p 
+    left join goals g 
+        on p.id = g.player_id 
+group by
+    p.position
 
 
 
 --問題9：ワールドカップ開催当時（2014-06-13）の年齢をプレイヤー毎に表示する。
-SELECT birth,TIMESTAMPDIFF(YEAR, birth, '2014-06-13') AS age, name, position
-FROM players
-ORDER BY age DESC;
-
+SELECT
+    birth
+    , TIMESTAMPDIFF(YEAR, birth, '2014-06-13') AS age
+    , name
+    , position 
+FROM
+    players 
+ORDER BY
+    age DESC;
 
 
 --問題10：オウンゴールの回数を表示する
-SELECT COUNT(g.goal_time)
-FROM goals  g
-WHERE g.player_id IS NULL;
+SELECT
+    COUNT(g.goal_time) 
+FROM
+    goals g 
+WHERE
+    g.player_id IS NULL;
+
+
+
+--問題11：各グループごとの総得点数を表示して下さい。
+SELECT
+    c.group_name
+    , count(g.id) 
+FROM
+    goals g 
+    LEFT JOIN pairings p 
+        ON p.id = g.pairing_id 
+    LEFT JOIN countries c 
+        ON p.my_country_id = c.id 
+WHERE
+    p.kickoff BETWEEN '2014-06-13 0:00:00' AND '2014-06-27 23:59:59' 
+GROUP BY
+    c.group_name
+
+
+
+--問題12：日本VSコロンビア戦（pairings.id = 103）でのコロンビアの得点のゴール時間を表示してください
+SELECT
+    goal_time 
+FROM
+    goals 
+WHERE
+    pairing_id = 103
+
+
+
+--問題13：日本VSコロンビア戦の勝敗を表示して下さい。
+
+SELECT c.name, COUNT(g.goal_time)
+FROM goals g
+LEFT JOIN pairings p ON p.id = g.pairing_id
+LEFT JOIN countries c ON p.my_country_id = c.id 
+WHERE p.id = 103 OR p.id = 39
+GROUP BY c.name
+
+
+select * from countries as 国;
+select * from pairings as 国情報;
+select * from goals as 点数情報;
+
+
+
+--問題14：グループCの各対戦毎にゴール数を表示してください
+SELECT p1.kickoff, c1.name AS my_country, c2.name AS enemy_country,
+    c1.ranking AS my_ranking, c2.ranking AS enemy_ranking,
+    COUNT(g1.id) AS my_goals
+FROM pairings p1
+LEFT JOIN countries c1 ON c1.id = p1.my_country_id
+LEFT JOIN countries c2 ON c2.id = p1.enemy_country_id
+LEFT JOIN goals g1 ON p1.id = g1.pairing_id
+WHERE c1.group_name = 'C' AND c2.group_name = 'C'
+GROUP BY p1.kickoff, c1.name, c2.name, c1.ranking, c2.ranking
+ORDER BY p1.kickoff, c1.ranking
+
+
+
+--問題15：グループCの各対戦毎にゴール数を表示してください。
+--問題１４と同じ
+
+
+
+--問題16：グループCの各対戦毎にゴール数を表示してください。
+SELECT p1.kickoff, c1.name AS my_country, c2.name AS enemy_country, 
+    c1.ranking AS my_ranking, c2.ranking AS enemy_ranking,
+   
+    (SELECT COUNT(g1.id) FROM goals g1 WHERE p1.id = g1.pairing_id) AS my_goals,
+    (
+        SELECT COUNT(g2.id) 
+        FROM goals g2 
+        LEFT JOIN pairings p2 ON p2.id = g2.pairing_id
+        WHERE p2.my_country_id = p1.enemy_country_id AND p2.enemy_country_id = p1.my_country_id
+    ) AS enemy_goals
+FROM pairings p1
+LEFT JOIN countries c1 ON c1.id = p1.my_country_id
+LEFT JOIN countries c2 ON c2.id = p1.enemy_country_id
+WHERE c1.group_name = 'C' AND c2.group_name = 'C'
+ORDER BY p1.kickoff, c1.ranking
+
+
+
+--問題17：問題16の結果に得失点差を追加してください。
+SELECT p1.kickoff, c1.name AS my_country, c2.name AS enemy_country, 
+    c1.ranking AS my_ranking, c2.ranking AS enemy_ranking,
+    (SELECT COUNT(g1.id) FROM goals g1 WHERE p1.id = g1.pairing_id) AS my_goals,
+    (
+        SELECT COUNT(g2.id) 
+        FROM goals g2 
+        LEFT JOIN pairings p2 ON p2.id = g2.pairing_id
+        WHERE p2.my_country_id = p1.enemy_country_id AND p2.enemy_country_id = p1.my_country_id
+    ) AS enemy_goals,
+    -- 追加ここから
+    (SELECT COUNT(g1.id) FROM goals g1 WHERE p1.id = g1.pairing_id) - ( 
+        SELECT COUNT(g2.id) 
+        FROM goals g2 
+        LEFT JOIN pairings p2 ON p2.id = g2.pairing_id
+        WHERE p2.my_country_id = p1.enemy_country_id AND p2.enemy_country_id = p1.my_country_id
+    ) AS goal_diff
+    -- 追加ここまで
+FROM pairings p1
+LEFT JOIN countries c1 ON c1.id = p1.my_country_id
+LEFT JOIN countries c2 ON c2.id = p1.enemy_country_id
+WHERE c1.group_name = 'C' AND c2.group_name = 'C'
+ORDER BY p1.kickoff, c1.ranking
+
+
+
+--問題18：ブラジル（my_country_id = 1）対クロアチア（enemy_country_id = 4）戦のキックオフ時間（現地時間）を表示してください。
+SELECT
+    p.kickoff
+    , p.kickoff - cast('12 hours' as INTERVAL) AS kickoff_jp 
+FROM
+    pairings p 
+WHERE
+    p.my_country_id = 1 
+    AND p.enemy_country_id = 4;
+
+
+--問題19：年齢ごとの選手数を表示してください。（年齢はワールドカップ開催当時である2014-06-13を使って算出してください。）
+select
+    date_part('year', AGE('2014-06-13', birth)) as age
+    , COUNT(id) AS player_count 
+FROM
+    players 
+GROUP BY
+    age 
+order by
+    age
+
+
+
+--問題20：年齢ごとの選手数を表示してください。ただし、10歳毎に合算して表示してください。
+select
+    count(date_part('year', AGE('2014-06-13', birth)) between 10 and 20) as age,
+    COUNT(id) AS player_count 
+FROM
+    players 
+    where 
+    date_part('year', AGE('2014-06-13', birth)) between 10 and 20 
+order by
+    age
+    
+    
+
+    select
+        date_part('year', AGE('2014-06-13', birth)) as age
+        , COUNT(id)AS player_count 
+    FROM
+        players where 
+        date_part('year', AGE('2014-06-13', birth)) between 10 and 19 
+    GROUP BY
+        age 
+    order by
+        age
+
+
+
+---問題21：年齢ごとの選手数を表示してください。ただし、5歳毎に合算して表示してください。
+
+
+
+--問題22：以下の条件でSQLを作成し、抽出された結果をもとにどのような傾向があるか考えてみてください。
+SELECT FLOOR(TIMESTAMPDIFF(YEAR, birth, '2014-06-13') / 5) * 5   AS age, position, COUNT(id) AS player_count, AVG(height), AVG(weight)
+FROM players 
+GROUP BY age, position
+ORDER BY age, position
+
+
+
+--問題23：身長の高い選手ベスト5を抽出し、以下の項目を表示してください。
+SELECT name, height, weight
+FROM players
+ORDER BY height DESC
+LIMIT 5
+
+
+
+--問題24：身長の高い選手6位～20位を抽出し、以下の項目を表示してください。
+SELECT name, height, weight
+FROM players
+ORDER BY height DESC
+LIMIT (5) offset (15)
 
 
 
